@@ -21,17 +21,17 @@ zones:
   WAN:      {site: Internet, vlan: 0, subnet: 203.0.113.0/24}
 
 hosts:
-  wazuh01:        {zone: SERVERS, ip: 10.10.20.10}   # Wazuh SIEM (Lab 01)
-  dc01:           {zone: SERVERS, ip: 10.10.20.11}   # domain controller, DNS, file shares (Lab 01)
+  wazuh01:        {zone: SERVERS, ip: 10.10.20.10, real_services: true}   # Wazuh SIEM (Lab 01)
+  dc01:           {zone: SERVERS, ip: 10.10.20.11, real_services: true}   # domain controller, DNS, file shares (Lab 01)
   srv01:          {zone: SERVERS, ip: 10.10.20.12}   # Linux server (Lab 01)
-  ws01:           {zone: USERS, ip: 10.10.30.21}     # workstation (Lab 01)
+  ws01:           {zone: USERS, ip: 10.10.30.21, real_services: true}     # workstation (Lab 01)
   probe-users:    {zone: USERS, ip: 10.10.30.250}    # checker host
   probe-guest:    {zone: GUEST, ip: 10.10.40.250}    # checker host
   web01:          {zone: DMZ, ip: 10.10.50.10}       # public web server (also runs the DMZ checker)
-  fw-hq-mgmt:     {zone: MGMT, ip: 10.10.99.1}       # fw-hq GUI/SSH, bound to MGMT only
+  fw-hq-mgmt:     {zone: MGMT, ip: 10.10.99.1, real_services: true}       # fw-hq GUI/SSH, bound to MGMT only
   jump01:         {zone: MGMT, ip: 10.10.99.20}      # admin jump host (runs the MGMT checker)
   probe-branch:   {zone: BR-USERS, ip: 10.20.30.250} # checker host at the branch
-  fw-br-mgmt:     {zone: BR-MGMT, ip: 10.20.99.1}    # fw-br GUI/SSH, bound to BR-MGMT only
+  fw-br-mgmt:     {zone: BR-MGMT, ip: 10.20.99.1, real_services: true}    # fw-br GUI/SSH, bound to BR-MGMT only
   probe-internet: {zone: WAN, ip: 203.0.113.100}     # "outside attacker's view" checker host
 
 flows:
@@ -41,6 +41,8 @@ flows:
   - {from: USERS, to: dc01, proto: tcp, port: 445, action: allow, why: "SMB: department file shares and GPO files"}
   - {from: USERS, to: dc01, proto: udp, port: 53, action: allow, why: "DNS: internal name resolution"}
   - {from: USERS, to: web01, proto: tcp, port: 443, action: allow, why: "Staff use the company's public website"}
+  - {from: USERS, to: wazuh01, proto: tcp, port: 1514, action: allow, why: "Wazuh agent on ws01 sends events to the SIEM (Lab 01)"}
+  - {from: USERS, to: wazuh01, proto: tcp, port: 1515, action: allow, why: "Wazuh agent enrollment (Lab 01)"}
   - {from: USERS, to: wazuh01, proto: tcp, port: 443, action: deny, why: "SIEM dashboard is for administrators (MGMT) only"}
   - {from: USERS, to: srv01, proto: tcp, port: 22, action: deny, why: "Server administration only from MGMT"}
   - {from: USERS, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI only from MGMT"}

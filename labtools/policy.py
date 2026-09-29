@@ -28,6 +28,7 @@ class Host:
     name: str
     zone: str
     ip: IPv4Address
+    real_services: bool = False  # its own services answer the probes (no listener needed)
 
 
 @dataclass(frozen=True)
@@ -61,7 +62,7 @@ def _zones_and_hosts(raw: dict) -> tuple[list[IPv4Network], dict[str, Zone], dic
     for name, h in raw["hosts"].items():
         if h["zone"] not in zones:
             raise PolicyError(f"host {name}: unknown zone {h['zone']!r}")
-        host = Host(name, h["zone"], IPv4Address(h["ip"]))
+        host = Host(name, h["zone"], IPv4Address(h["ip"]), bool(h.get("real_services", False)))
         if host.ip not in zones[host.zone].subnet:
             raise PolicyError(f"host {name}: {host.ip} is not in zone {host.zone} ({zones[host.zone].subnet})")
         if not any(host.ip in net for net in lab):

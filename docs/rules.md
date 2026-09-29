@@ -11,6 +11,8 @@ Everything not listed as `allow` is denied by default. `deny` rows are listed so
 | USERS | dc01 (SERVERS, 10.10.20.11) | tcp/445 | allow | SMB: department file shares and GPO files |
 | USERS | dc01 (SERVERS, 10.10.20.11) | udp/53 | allow | DNS: internal name resolution |
 | USERS | web01 (DMZ, 10.10.50.10) | tcp/443 | allow | Staff use the company's public website |
+| USERS | wazuh01 (SERVERS, 10.10.20.10) | tcp/1514 | allow | Wazuh agent on ws01 sends events to the SIEM (Lab 01) |
+| USERS | wazuh01 (SERVERS, 10.10.20.10) | tcp/1515 | allow | Wazuh agent enrollment (Lab 01) |
 | USERS | wazuh01 (SERVERS, 10.10.20.10) | tcp/443 | deny | SIEM dashboard is for administrators (MGMT) only |
 | USERS | srv01 (SERVERS, 10.10.20.12) | tcp/22 | deny | Server administration only from MGMT |
 | USERS | fw-hq-mgmt (MGMT, 10.10.99.1) | tcp/443 | deny | Firewall GUI only from MGMT |

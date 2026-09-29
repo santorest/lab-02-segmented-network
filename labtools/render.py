@@ -34,6 +34,30 @@ def render_rules(p: Policy) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_listeners(p: Policy) -> str:
+    """One listener command per destination host, with every port its flows (allow and deny) use."""
+    lines = [
+        HEADER + "# Listener commands\n",
+        "Run on each target before the checker, so allowed flows have something to answer. Skip ports where the "
+        "real service already listens.\n",
+        "| Host | IP | Command |",
+        "|---|---|---|",
+    ]
+    for name, host in p.hosts.items():
+        tcp = sorted({f.port for f in p.flows if f.dst_host == name and f.proto == "tcp"})
+        udp = sorted({f.port for f in p.flows if f.dst_host == name and f.proto == "udp"})
+        if not (tcp or udp):
+            continue
+        if host.real_services:
+            parts = [f"{proto} {' '.join(map(str, ports))}" for proto, ports in (("tcp", tcp), ("udp", udp)) if ports]
+            ports = ", ".join(parts)
+            lines.append(f"| {name} | {host.ip} | none: its real services answer ({ports}) |")
+            continue
+        args = (["--tcp", *map(str, tcp)] if tcp else []) + (["--udp", *map(str, udp)] if udp else [])
+        lines.append(f"| {name} | {host.ip} | `sudo python3 -m labtools.listener {' '.join(args)}` |")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Render the policy into Markdown docs.")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
@@ -44,6 +68,7 @@ def main(argv=None) -> int:
     outputs = {
         args.root / "docs" / "ip-plan.md": render_ip_plan(policy),
         args.root / "docs" / "rules.md": render_rules(policy),
+        args.root / "docs" / "listeners.md": render_listeners(policy),
     }
     drifted = []
     for path, text in outputs.items():
