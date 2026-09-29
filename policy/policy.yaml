@@ -1,0 +1,84 @@
+# Single source of truth for Lab 02's firewall policy.
+# - docs/ip-plan.md and docs/rules.md are generated from this file (python -m labtools.render)
+# - the reachability checker tests every flow listed here (python -m labtools.checker --zone <ZONE>)
+# Anything not listed as "allow" is denied by default; "deny" flows are listed to prove that.
+version: 1
+
+# The checker refuses to probe anything outside these ranges.
+lab_networks:
+  - 10.10.0.0/16     # head office (HQ)
+  - 10.20.0.0/16     # branch
+  - 203.0.113.0/24   # simulated internet (RFC 5737 documentation range)
+
+zones:
+  SERVERS:  {site: HQ, vlan: 20, subnet: 10.10.20.0/24}
+  USERS:    {site: HQ, vlan: 30, subnet: 10.10.30.0/24}
+  GUEST:    {site: HQ, vlan: 40, subnet: 10.10.40.0/24}
+  DMZ:      {site: HQ, vlan: 50, subnet: 10.10.50.0/24}
+  MGMT:     {site: HQ, vlan: 99, subnet: 10.10.99.0/24}
+  BR-USERS: {site: Branch, vlan: 30, subnet: 10.20.30.0/24}
+  BR-MGMT:  {site: Branch, vlan: 99, subnet: 10.20.99.0/24}
+  WAN:      {site: Internet, vlan: 0, subnet: 203.0.113.0/24}
+
+hosts:
+  wazuh01:        {zone: SERVERS, ip: 10.10.20.10}   # Wazuh SIEM (Lab 01)
+  dc01:           {zone: SERVERS, ip: 10.10.20.11}   # domain controller, DNS, file shares (Lab 01)
+  srv01:          {zone: SERVERS, ip: 10.10.20.12}   # Linux server (Lab 01)
+  ws01:           {zone: USERS, ip: 10.10.30.21}     # workstation (Lab 01)
+  probe-users:    {zone: USERS, ip: 10.10.30.250}    # checker host
+  probe-guest:    {zone: GUEST, ip: 10.10.40.250}    # checker host
+  web01:          {zone: DMZ, ip: 10.10.50.10}       # public web server (also runs the DMZ checker)
+  fw-hq-mgmt:     {zone: MGMT, ip: 10.10.99.1}       # fw-hq GUI/SSH, bound to MGMT only
+  jump01:         {zone: MGMT, ip: 10.10.99.20}      # admin jump host (runs the MGMT checker)
+  probe-branch:   {zone: BR-USERS, ip: 10.20.30.250} # checker host at the branch
+  fw-br-mgmt:     {zone: BR-MGMT, ip: 10.20.99.1}    # fw-br GUI/SSH, bound to BR-MGMT only
+  probe-internet: {zone: WAN, ip: 203.0.113.100}     # "outside attacker's view" checker host
+
+flows:
+  # --- Staff at HQ -----------------------------------------------------------------------------------------
+  - {from: USERS, to: dc01, proto: tcp, port: 88, action: allow, why: "Kerberos: domain logon"}
+  - {from: USERS, to: dc01, proto: tcp, port: 389, action: allow, why: "LDAP: directory lookups and group policy"}
+  - {from: USERS, to: dc01, proto: tcp, port: 445, action: allow, why: "SMB: department file shares and GPO files"}
+  - {from: USERS, to: dc01, proto: udp, port: 53, action: allow, why: "DNS: internal name resolution"}
+  - {from: USERS, to: web01, proto: tcp, port: 443, action: allow, why: "Staff use the company's public website"}
+  - {from: USERS, to: wazuh01, proto: tcp, port: 443, action: deny, why: "SIEM dashboard is for administrators (MGMT) only"}
+  - {from: USERS, to: srv01, proto: tcp, port: 22, action: deny, why: "Server administration only from MGMT"}
+  - {from: USERS, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI only from MGMT"}
+  - {from: USERS, to: fw-hq-mgmt, proto: tcp, port: 22, action: deny, why: "Firewall SSH only from MGMT"}
+  - {from: USERS, to: jump01, proto: tcp, port: 22, action: deny, why: "A compromised workstation must not reach admin hosts"}
+
+  # --- Guest Wi-Fi: internet only -------------------------------------------------------------------------
+  - {from: GUEST, to: dc01, proto: tcp, port: 445, action: deny, why: "Guests never reach internal file shares"}
+  - {from: GUEST, to: dc01, proto: udp, port: 53, action: deny, why: "Guests use the firewall's resolver, not internal DNS"}
+  - {from: GUEST, to: srv01, proto: tcp, port: 22, action: deny, why: "Guests never reach internal servers"}
+  - {from: GUEST, to: ws01, proto: tcp, port: 445, action: deny, why: "No guest-to-staff device traffic"}
+  - {from: GUEST, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI only from MGMT"}
+  - {from: GUEST, to: web01, proto: tcp, port: 443, action: allow, why: "Guests may browse the public website like any visitor"}
+
+  # --- DMZ: the web server can't reach anything internal --------------------------------------------------
+  - {from: DMZ, to: dc01, proto: tcp, port: 389, action: deny, why: "A compromised web server must not query the directory"}
+  - {from: DMZ, to: dc01, proto: tcp, port: 445, action: deny, why: "No lateral movement from the DMZ"}
+  - {from: DMZ, to: srv01, proto: tcp, port: 22, action: deny, why: "No lateral movement from the DMZ"}
+  - {from: DMZ, to: ws01, proto: tcp, port: 445, action: deny, why: "No lateral movement from the DMZ"}
+  - {from: DMZ, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI only from MGMT"}
+
+  # --- Administration --------------------------------------------------------------------------------------
+  - {from: MGMT, to: wazuh01, proto: tcp, port: 443, action: allow, why: "Administrators use the SIEM dashboard"}
+  - {from: MGMT, to: srv01, proto: tcp, port: 22, action: allow, why: "Server administration over SSH (keys only)"}
+  - {from: MGMT, to: dc01, proto: tcp, port: 3389, action: allow, why: "Domain controller administration over RDP"}
+  - {from: MGMT, to: web01, proto: tcp, port: 22, action: allow, why: "Web server administration over SSH (keys only)"}
+  - {from: MGMT, to: fw-br-mgmt, proto: tcp, port: 443, action: allow, why: "Branch firewall administered from HQ over the tunnel"}
+
+  # --- Branch office (over the site-to-site IPsec tunnel) --------------------------------------------------
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 88, action: allow, why: "Kerberos: branch staff log on to the HQ domain"}
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 445, action: allow, why: "SMB: branch staff use HQ file shares"}
+  - {from: BR-USERS, to: dc01, proto: udp, port: 53, action: allow, why: "DNS: internal name resolution over the tunnel"}
+  - {from: BR-USERS, to: srv01, proto: tcp, port: 22, action: deny, why: "Server administration only from MGMT"}
+  - {from: BR-USERS, to: wazuh01, proto: tcp, port: 443, action: deny, why: "SIEM dashboard is for administrators only"}
+  - {from: BR-USERS, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI only from MGMT"}
+
+  # --- The internet's view ---------------------------------------------------------------------------------
+  - {from: WAN, to: web01, proto: tcp, port: 443, action: allow, why: "The only published service: HTTPS on the web server"}
+  - {from: WAN, to: web01, proto: tcp, port: 22, action: deny, why: "Web server SSH is never exposed to the internet"}
+  - {from: WAN, to: dc01, proto: tcp, port: 445, action: deny, why: "Internal services are never exposed"}
+  - {from: WAN, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI is never exposed to the internet"}
