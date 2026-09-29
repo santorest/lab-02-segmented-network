@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+# Checker output stays local until reviewed
+tests/results/*.csv
+# Never commit raw firewall configs (use docs/sanitize-config.md first)
+config*.xml
