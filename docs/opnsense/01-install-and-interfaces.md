@@ -66,4 +66,4 @@ rules in [03-nat-and-egress.md](03-nat-and-egress.md)).
 Servers, DMZ and MGMT hosts use the static addresses from [../ip-plan.md](../ip-plan.md). DNS servers to hand
 out: **dc01 (10.10.20.11)** in USERS and BR_USERS, because domain-joined Windows machines must resolve the
 domain through the domain controller; **the firewall's own address** in GUEST. dc01 forwards everything outside
-`lab.local` to the firewall, so the filtering in [05-dns-filtering.md](05-dns-filtering.md) still applies.
+`corp.internal` to the firewall, so the filtering in [05-dns-filtering.md](05-dns-filtering.md) still applies.

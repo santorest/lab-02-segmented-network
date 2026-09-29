@@ -5,7 +5,7 @@ play, using free public blocklists.
 
 ## 5.1 Resolver
 **Services ▸ Unbound DNS ▸ General**: enable Unbound, listen on SERVERS, GUEST, DMZ and MGMT; enable
-**DNSSEC**. Internal names (`lab.local`) are forwarded to dc01: **Query Forwarding** → domain `lab.local`,
+**DNSSEC**. Internal names (`corp.internal`) are forwarded to dc01: **Query Forwarding** → domain `corp.internal`,
 server 10.10.20.11.
 
 On **dc01**, set the DNS server's forwarder to the firewall (10.10.20.1) and disable root hints. Resulting
