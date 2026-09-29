@@ -9,6 +9,7 @@ so that allowed flows have something to answer (see docs/validation.md).
 
 import argparse
 import csv
+import secrets
 import socket
 import sys
 from dataclasses import dataclass
@@ -38,32 +39,46 @@ class Result:
         return "FAIL (blocked)" if self.flow.action == "allow" else "FAIL (allowed)"
 
 
-def probe(ip: str, proto: str, port: int, timeout: float) -> bool:
-    """True if a TCP connection opens, or a UDP datagram is echoed back, within the timeout."""
+def dns_query() -> bytes:
+    """A minimal DNS query (root NS, recursion desired) with a random transaction ID."""
+    header = bytes.fromhex("0100" "0001" "0000" "0000" "0000")  # flags RD, 1 question
+    question = bytes.fromhex("00" "0002" "0001")  # root, type NS, class IN
+    return secrets.token_bytes(2) + header + question
+
+
+def probe(ip: str, proto: str, port: int, timeout: float, dns: bool = False) -> bool:
+    """True if a TCP connection opens, or a UDP datagram gets an answer, within the timeout.
+
+    UDP needs a reply to be told apart from "blocked": the listener echoes the payload back. For DNS
+    (dns=True) a real query is sent and any reply carrying the same transaction ID counts, which works
+    both against a real DNS server (e.g. the domain controller) and against the echoing listener.
+    """
     if proto == "tcp":
         try:
             with socket.create_connection((ip, port), timeout=timeout):
                 return True
         except OSError:
             return False
+    payload = dns_query() if dns else PAYLOAD
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.settimeout(timeout)
         try:
-            sock.sendto(PAYLOAD, (ip, port))
-            data, _ = sock.recvfrom(64)
-            return data == PAYLOAD
+            sock.sendto(payload, (ip, port))
+            data, _ = sock.recvfrom(4096)
         except OSError:
             return False
+    return data[:2] == payload[:2] if dns else data == payload
 
 
 def run(policy: Policy, zone: str, timeout: float = 2.0, allow_outside_lab: bool = False,
         prober=probe) -> list[Result]:
     results = []
     for flow in policy.flows_from(zone):
-        ip = policy.hosts[flow.dst_host].ip
+        ip = flow.via or policy.hosts[flow.dst_host].ip
         if not allow_outside_lab and not policy.in_lab(IPv4Address(ip)):
             raise ValueError(f"{flow.dst_host} ({ip}) is outside the lab networks; refusing to probe it")
-        results.append(Result(flow, str(ip), prober(str(ip), flow.proto, flow.port, timeout)))
+        dns = flow.proto == "udp" and flow.port == 53
+        results.append(Result(flow, str(ip), prober(str(ip), flow.proto, flow.port, timeout, dns)))
     return results
 
 
@@ -98,7 +113,11 @@ def main(argv=None) -> int:
     if args.zone not in policy.zones:
         print(f"Unknown zone {args.zone!r}; zones: {', '.join(policy.zones)}", file=sys.stderr)
         return 2
-    results = run(policy, args.zone, args.timeout)
+    try:
+        results = run(policy, args.zone, args.timeout)
+    except ValueError as exc:
+        print(f"Refusing to run: {exc}", file=sys.stderr)
+        return 2
     if not results:
         print(f"No flows defined for zone {args.zone}")
         return 0

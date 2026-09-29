@@ -12,7 +12,7 @@
 | **Rol asumido** | Ingeniero de redes y seguridad de una empresa de 40 personas con dos sedes |
 | **Entorno** | Proxmox VE, dos firewalls OPNsense 26.7, bridges con VLAN, laboratorio aislado |
 | **Herramientas** | OPNsense, Suricata, Unbound, IPsec (IKEv2), OpenVPN, Python |
-| **Entregable** | Arquitectura, política como código (38 flujos probados), guías de configuración, herramientas de validación probadas |
+| **Entregable** | Arquitectura, política como código (56 flujos por verificar en el laboratorio), guías de configuración, herramientas de validación con pruebas unitarias |
 
 ---
 
@@ -26,7 +26,7 @@
 - **Requisitos:**
     1. El personal accede a internet y solo a los servicios internos que necesita.
     2. Los invitados solo acceden a internet.
-    3. El sitio web es lo único accesible desde internet.
+    3. El sitio web es el único servicio publicado en internet (aparte de los puntos de acceso VPN).
     4. Una estación o un servidor web comprometidos no pueden llegar a interfaces de administración ni a otras zonas.
     5. La sucursal usa los servicios de la sede por un túnel cifrado; el personal remoto se conecta con MFA.
     6. La administración solo se hace desde una red dedicada, con MFA, y toda decisión queda registrada de forma central.
@@ -36,6 +36,8 @@
   zona, y las verificaciones manuales (cifrado del túnel, MFA, IPS, filtrado DNS) se superan.
 
 ## 2. Arquitectura
+
+![Diagrama de arquitectura](diagrams/architecture.svg)
 
 | Sede | Zona | VLAN | Subred | Propósito |
 |---|---|---|---|---|
@@ -78,8 +80,9 @@ Guías paso a paso para OPNsense 26.7 en [docs/opnsense/](docs/opnsense/) (en in
 ## 4. Plan de validación
 
 - **Verificación automática de conectividad** ([docs/validation.md](docs/validation.md)): desde un host de prueba
-  en cada zona, `python3 -m labtools.checker --zone <ZONA>` prueba los 38 flujos de la política con conexiones
-  TCP y ecos UDP normales hacia los propios hosts del laboratorio, y marca cada uno como *PASS*,
+  en cada zona, `python3 -m labtools.checker --zone <ZONA>` prueba los 56 flujos de la política con conexiones
+  TCP, ecos UDP y consultas DNS normales hacia los propios hosts del laboratorio (los flujos desde internet, en la
+  dirección WAN del firewall), y marca cada uno como *PASS*,
   *FAIL (blocked)* o *FAIL (allowed)*.
 - **Verificaciones manuales** ([tests/test-plan.md](tests/test-plan.md)): el tráfico IPsec va cifrado en la red,
   el inicio de sesión VPN falla sin el código TOTP, el IPS alerta ante una firma de prueba inofensiva, los
@@ -90,7 +93,8 @@ Guías paso a paso para OPNsense 26.7 en [docs/opnsense/](docs/opnsense/) (en in
 **Entregado en este repositorio:**
 
 - Arquitectura, diseño de zonas y plan de direccionamiento para dos sedes.
-- Una matriz de 38 flujos, cada uno con su justificación escrita, validada en CI (zonas desconocidas, flujos
+- Una matriz de 56 flujos (incluidos todos los puertos que necesita un cliente de Active Directory), cada uno con
+  su justificación escrita, validada en CI (zonas desconocidas, flujos
   dentro de una misma zona, duplicados o justificaciones faltantes hacen fallar la compilación).
 - Ocho guías de configuración de OPNsense y una guía para publicar configuraciones sin secretos.
 - Un verificador de conectividad y un listener de destino cubiertos por pruebas automatizadas (incluidas sondas
@@ -139,7 +143,7 @@ licencia usando la misma política.
 | 12.2 Establecer y mantener una arquitectura de red segura | CIS Controls v8 | Zonas segmentadas, DMZ, aislamiento de invitados, MGMT dedicada |
 | 12.8 Recursos de cómputo dedicados para tareas administrativas | CIS Controls v8 | Zona MGMT y host de salto; GUI/SSH ligados a MGMT |
 | 6.4 Exigir MFA para el acceso remoto a la red | CIS Controls v8 | OpenVPN con TOTP |
-| 13.3 Desplegar una solución de detección de intrusiones en red | CIS Controls v8 | IPS Suricata en WAN y USERS |
+| 13.3 / 13.8 Desplegar detección / prevención de intrusiones en red | CIS Controls v8 | Suricata en modo IPS en WAN y en las VLAN internas |
 | PR.IR-01 Las redes y entornos están protegidos contra accesos lógicos no autorizados | NIST CSF 2.0 | Zonas, control de salida, política probada |
 
 ---

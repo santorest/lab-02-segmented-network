@@ -60,3 +60,30 @@ def test_hosts_with_real_services_get_no_listener_command():
     data["hosts"]["srv01"]["real_services"] = True
     md = render.render_listeners(validate(data))
     assert "| srv01 | 10.10.20.12 | none: its real services answer (tcp 22) |" in md
+
+
+def test_listener_commands_skip_ports_served_by_real_daemons():
+    data = copy.deepcopy(BASE)
+    data["hosts"]["srv01"]["real_services"] = [22]
+    data["flows"].append({"from": "USERS", "to": "srv01", "proto": "tcp", "port": 8443, "action": "deny", "why": "x"})
+    md = render.render_listeners(validate(data))
+    assert "`sudo python3 -m labtools.listener --tcp 8443` (tcp 22 answered by its real services) |" in md
+
+
+def test_rules_show_the_probed_address_for_via_flows():
+    data = copy.deepcopy(BASE)
+    data["lab_networks"].append("203.0.113.0/24")
+    data["zones"]["WAN"] = {"site": "Internet", "vlan": 0, "subnet": "203.0.113.0/24"}
+    data["flows"] = [{"from": "WAN", "to": "srv01", "via": "203.0.113.1", "proto": "tcp", "port": 22,
+                      "action": "deny", "why": "never published"}]
+    md = render.render_rules(validate(data))
+    assert "| WAN | srv01 (SERVERS, 10.10.20.12) via 203.0.113.1 | tcp/22 | deny |" in md
+
+
+def test_via_flows_need_no_listener_on_the_inner_host():
+    data = copy.deepcopy(BASE)
+    data["lab_networks"].append("203.0.113.0/24")
+    data["zones"]["WAN"] = {"site": "Internet", "vlan": 0, "subnet": "203.0.113.0/24"}
+    data["flows"] = [{"from": "WAN", "to": "srv01", "via": "203.0.113.1", "proto": "tcp", "port": 80,
+                      "action": "deny", "why": "not published"}]
+    assert "srv01" not in render.render_listeners(validate(data))

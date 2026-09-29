@@ -28,7 +28,11 @@ class Host:
     name: str
     zone: str
     ip: IPv4Address
-    real_services: bool = False  # its own services answer the probes (no listener needed)
+    all_real: bool = False  # its own services answer on every probed port (no listener needed)
+    real_ports: frozenset[int] = frozenset()  # ports answered by its own services (listener for the rest)
+
+    def answers_itself(self, port: int) -> bool:
+        return self.all_real or port in self.real_ports
 
 
 @dataclass(frozen=True)
@@ -39,6 +43,7 @@ class Flow:
     port: int
     action: str
     why: str
+    via: IPv4Address | None = None  # address actually probed, e.g. the WAN address in front of a port forward
 
 
 @dataclass
@@ -55,6 +60,15 @@ class Policy:
         return any(ip in net for net in self.lab_networks)
 
 
+def _real_services(host: str, value) -> tuple[bool, frozenset[int]]:
+    """real_services: true (every port), false/absent (none) or a list of port numbers."""
+    if value is True or value is False:
+        return value, frozenset()
+    if isinstance(value, list) and all(isinstance(p, int) and not isinstance(p, bool) for p in value):
+        return False, frozenset(value)
+    raise PolicyError(f"host {host}: real_services must be true, false or a list of port numbers")
+
+
 def _zones_and_hosts(raw: dict) -> tuple[list[IPv4Network], dict[str, Zone], dict[str, Host]]:
     lab = [IPv4Network(n) for n in raw["lab_networks"]]
     zones = {n: Zone(n, str(z["site"]), int(z["vlan"]), IPv4Network(z["subnet"])) for n, z in raw["zones"].items()}
@@ -62,7 +76,8 @@ def _zones_and_hosts(raw: dict) -> tuple[list[IPv4Network], dict[str, Zone], dic
     for name, h in raw["hosts"].items():
         if h["zone"] not in zones:
             raise PolicyError(f"host {name}: unknown zone {h['zone']!r}")
-        host = Host(name, h["zone"], IPv4Address(h["ip"]), bool(h.get("real_services", False)))
+        all_real, real_ports = _real_services(name, h.get("real_services", False))
+        host = Host(name, h["zone"], IPv4Address(h["ip"]), all_real, real_ports)
         if host.ip not in zones[host.zone].subnet:
             raise PolicyError(f"host {name}: {host.ip} is not in zone {host.zone} ({zones[host.zone].subnet})")
         if not any(host.ip in net for net in lab):
@@ -96,11 +111,19 @@ def validate(raw: dict) -> Policy:
             raise PolicyError(f"{where}: action must be allow or deny")
         if not str(f.get("why") or "").strip():
             raise PolicyError(f"{where}: missing justification (why)")
-        key = (f["from"], f["to"], f["proto"], f["port"])
+        via = None
+        if f.get("via") is not None:
+            try:
+                via = IPv4Address(f["via"])
+            except ValueError as exc:
+                raise PolicyError(f"{where}: via is not an IPv4 address") from exc
+            if not any(via in net for net in lab):
+                raise PolicyError(f"{where}: via {via} is outside lab_networks")
+        key = (f["from"], f["to"], f["proto"], f["port"], via)
         if key in seen:
             raise PolicyError(f"{where}: duplicate of an earlier flow {key}")
         seen.add(key)
-        flows.append(Flow(f["from"], f["to"], f["proto"], f["port"], f["action"], str(f["why"]).strip()))
+        flows.append(Flow(f["from"], f["to"], f["proto"], f["port"], f["action"], str(f["why"]).strip(), via))
     return Policy(lab, zones, hosts, flows)
 
 

@@ -25,7 +25,7 @@ bundle: "Published on the portfolio site with its SHA-256 checksum"
 | **Role played** | Network/security engineer for a 40-person company with two offices |
 | **Environment** | Proxmox VE, two OPNsense 26.7 firewalls, VLAN-aware bridges, isolated lab |
 | **Tools** | OPNsense, Suricata, Unbound, IPsec (IKEv2), OpenVPN, Python |
-| **Deliverable** | Architecture, policy-as-code (38 tested flows), configuration guides, tested validation tooling |
+| **Deliverable** | Architecture, policy-as-code (56 flows to verify in the lab), configuration guides, unit-tested validation tooling |
 
 ---
 
@@ -38,7 +38,7 @@ bundle: "Published on the portfolio site with its SHA-256 checksum"
 - **Requirements:**
     1. Staff reach the internet and only the internal services they need.
     2. Guests reach only the internet.
-    3. The website is the only thing reachable from the internet.
+    3. The website is the only service published to the internet (VPN endpoints aside).
     4. A compromised workstation or web server can't reach management interfaces or other zones.
     5. The branch uses head-office services over an encrypted tunnel; remote staff connect with MFA.
     6. Administration happens only from a dedicated network, with MFA, and every decision is logged centrally.
@@ -90,8 +90,8 @@ Step-by-step guides for OPNsense 26.7 in [docs/opnsense/](docs/opnsense/):
 ## 4. Validation plan
 
 - **Automated reachability check** ([docs/validation.md](docs/validation.md)): from a probe host in each zone,
-  `python3 -m labtools.checker --zone <ZONE>` tests all 38 flows in the policy with ordinary TCP connections
-  and UDP echoes to the lab's own hosts, and reports each as *PASS*, *FAIL (blocked)* or *FAIL (allowed)*.
+  `python3 -m labtools.checker --zone <ZONE>` tests all 56 flows in the policy with ordinary TCP connections,
+  UDP echoes and DNS queries to the lab's own hosts (internet-facing flows at the firewall's WAN address), and reports each as *PASS*, *FAIL (blocked)* or *FAIL (allowed)*.
 - **Manual checks** ([tests/test-plan.md](tests/test-plan.md)): IPsec traffic is encrypted on the wire, VPN
   login fails without the TOTP code, the IPS raises an alert on a harmless test signature, blocked domains
   don't resolve, and a failed admin login reaches Wazuh.
@@ -101,7 +101,8 @@ Step-by-step guides for OPNsense 26.7 in [docs/opnsense/](docs/opnsense/):
 **Delivered in this repository:**
 
 - Architecture, zone design and IP plan for two sites.
-- A policy matrix of 38 flows, each with a written justification, validated in CI (unknown zones, same-zone
+- A policy matrix of 56 flows (including the full set of ports an Active Directory client needs), each with a
+  written justification, validated in CI (unknown zones, same-zone
   flows, duplicates or missing justifications fail the build).
 - Eight OPNsense configuration guides and a guide to publishing firewall configs without secrets.
 - A reachability checker and target listener covered by an automated test suite (including real TCP/UDP
@@ -145,7 +146,7 @@ publish the measured conformance here, and later compare with a licensed FortiGa
 | 12.2 Establish and maintain a secure network architecture | CIS Controls v8 | Segmented zones, DMZ, guest isolation, dedicated MGMT |
 | 12.8 Establish and maintain dedicated computing resources for administrative work | CIS Controls v8 | MGMT zone and jump host; GUI/SSH bound to MGMT |
 | 6.4 Require MFA for remote network access | CIS Controls v8 | OpenVPN with TOTP |
-| 13.3 Deploy a network intrusion detection solution | CIS Controls v8 | Suricata IPS on WAN and USERS |
+| 13.3 / 13.8 Deploy network intrusion detection / prevention | CIS Controls v8 | Suricata in IPS mode on WAN and the internal VLANs |
 | PR.IR-01 Networks and environments are protected from unauthorized logical access | NIST CSF 2.0 | Zones, egress control, tested policy |
 
 ---

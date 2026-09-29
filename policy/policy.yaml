@@ -23,13 +23,13 @@ zones:
 hosts:
   wazuh01:        {zone: SERVERS, ip: 10.10.20.10, real_services: true}   # Wazuh SIEM (Lab 01)
   dc01:           {zone: SERVERS, ip: 10.10.20.11, real_services: true}   # domain controller, DNS, file shares (Lab 01)
-  srv01:          {zone: SERVERS, ip: 10.10.20.12}   # Linux server (Lab 01)
+  srv01:          {zone: SERVERS, ip: 10.10.20.12, real_services: [22]}   # Linux server (Lab 01); sshd answers
   ws01:           {zone: USERS, ip: 10.10.30.21, real_services: true}     # workstation (Lab 01)
   probe-users:    {zone: USERS, ip: 10.10.30.250}    # checker host
   probe-guest:    {zone: GUEST, ip: 10.10.40.250}    # checker host
-  web01:          {zone: DMZ, ip: 10.10.50.10}       # public web server (also runs the DMZ checker)
+  web01:          {zone: DMZ, ip: 10.10.50.10, real_services: [22, 443]}  # public web server; sshd + nginx answer
   fw-hq-mgmt:     {zone: MGMT, ip: 10.10.99.1, real_services: true}       # fw-hq GUI/SSH, bound to MGMT only
-  jump01:         {zone: MGMT, ip: 10.10.99.20}      # admin jump host (runs the MGMT checker)
+  jump01:         {zone: MGMT, ip: 10.10.99.20, real_services: [22]}  # admin jump host; sshd answers
   probe-branch:   {zone: BR-USERS, ip: 10.20.30.250} # checker host at the branch
   fw-br-mgmt:     {zone: BR-MGMT, ip: 10.20.99.1, real_services: true}    # fw-br GUI/SSH, bound to BR-MGMT only
   probe-internet: {zone: WAN, ip: 203.0.113.100}     # "outside attacker's view" checker host
@@ -40,6 +40,14 @@ flows:
   - {from: USERS, to: dc01, proto: tcp, port: 389, action: allow, why: "LDAP: directory lookups and group policy"}
   - {from: USERS, to: dc01, proto: tcp, port: 445, action: allow, why: "SMB: department file shares and GPO files"}
   - {from: USERS, to: dc01, proto: udp, port: 53, action: allow, why: "DNS: internal name resolution"}
+  - {from: USERS, to: dc01, proto: tcp, port: 53, action: allow, why: "DNS over TCP: large answers and zone lookups by the domain client"}
+  - {from: USERS, to: dc01, proto: udp, port: 88, action: allow, why: "Kerberos over UDP"}
+  - {from: USERS, to: dc01, proto: udp, port: 123, action: allow, why: "Time sync with the domain controller (Kerberos fails beyond 5 minutes of skew)"}
+  - {from: USERS, to: dc01, proto: tcp, port: 135, action: allow, why: "RPC endpoint mapper (Netlogon, Group Policy); the dynamic RPC range 49152-65535 is allowed by the same rule"}
+  - {from: USERS, to: dc01, proto: udp, port: 389, action: allow, why: "CLDAP: the domain-controller locator"}
+  - {from: USERS, to: dc01, proto: tcp, port: 464, action: allow, why: "Kerberos password change"}
+  - {from: USERS, to: dc01, proto: udp, port: 464, action: allow, why: "Kerberos password change"}
+  - {from: USERS, to: dc01, proto: tcp, port: 3268, action: allow, why: "Global catalog lookups"}
   - {from: USERS, to: web01, proto: tcp, port: 443, action: allow, why: "Staff use the company's public website"}
   - {from: USERS, to: wazuh01, proto: tcp, port: 1514, action: allow, why: "Wazuh agent on ws01 sends events to the SIEM (Lab 01)"}
   - {from: USERS, to: wazuh01, proto: tcp, port: 1515, action: allow, why: "Wazuh agent enrollment (Lab 01)"}
@@ -75,12 +83,24 @@ flows:
   - {from: BR-USERS, to: dc01, proto: tcp, port: 88, action: allow, why: "Kerberos: branch staff log on to the HQ domain"}
   - {from: BR-USERS, to: dc01, proto: tcp, port: 445, action: allow, why: "SMB: branch staff use HQ file shares"}
   - {from: BR-USERS, to: dc01, proto: udp, port: 53, action: allow, why: "DNS: internal name resolution over the tunnel"}
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 389, action: allow, why: "LDAP: directory lookups and group policy"}
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 53, action: allow, why: "DNS over TCP: large answers and zone lookups by the domain client"}
+  - {from: BR-USERS, to: dc01, proto: udp, port: 88, action: allow, why: "Kerberos over UDP"}
+  - {from: BR-USERS, to: dc01, proto: udp, port: 123, action: allow, why: "Time sync with the domain controller (Kerberos fails beyond 5 minutes of skew)"}
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 135, action: allow, why: "RPC endpoint mapper (Netlogon, Group Policy); the dynamic RPC range 49152-65535 is allowed by the same rule"}
+  - {from: BR-USERS, to: dc01, proto: udp, port: 389, action: allow, why: "CLDAP: the domain-controller locator"}
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 464, action: allow, why: "Kerberos password change"}
+  - {from: BR-USERS, to: dc01, proto: udp, port: 464, action: allow, why: "Kerberos password change"}
+  - {from: BR-USERS, to: dc01, proto: tcp, port: 3268, action: allow, why: "Global catalog lookups"}
   - {from: BR-USERS, to: srv01, proto: tcp, port: 22, action: deny, why: "Server administration only from MGMT"}
   - {from: BR-USERS, to: wazuh01, proto: tcp, port: 443, action: deny, why: "SIEM dashboard is for administrators only"}
   - {from: BR-USERS, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI only from MGMT"}
 
   # --- The internet's view ---------------------------------------------------------------------------------
-  - {from: WAN, to: web01, proto: tcp, port: 443, action: allow, why: "The only published service: HTTPS on the web server"}
-  - {from: WAN, to: web01, proto: tcp, port: 22, action: deny, why: "Web server SSH is never exposed to the internet"}
-  - {from: WAN, to: dc01, proto: tcp, port: 445, action: deny, why: "Internal services are never exposed"}
-  - {from: WAN, to: fw-hq-mgmt, proto: tcp, port: 443, action: deny, why: "Firewall GUI is never exposed to the internet"}
+  # The internet only sees fw-hq's WAN address, so these flows are probed at 203.0.113.1 ("via"): that is
+  # where a port forward or an exposed service would appear. probe-internet has no route to 10.10.0.0/16.
+  - {from: WAN, to: web01, via: 203.0.113.1, proto: tcp, port: 443, action: allow, why: "The only published service: HTTPS forwarded to the web server"}
+  - {from: WAN, to: web01, via: 203.0.113.1, proto: tcp, port: 80, action: deny, why: "No plain-HTTP service is published"}
+  - {from: WAN, to: web01, via: 203.0.113.1, proto: tcp, port: 22, action: deny, why: "SSH is never exposed to the internet"}
+  - {from: WAN, to: dc01, via: 203.0.113.1, proto: tcp, port: 445, action: deny, why: "Internal services are never exposed"}
+  - {from: WAN, to: dc01, via: 203.0.113.1, proto: tcp, port: 3389, action: deny, why: "Remote desktop is never exposed"}

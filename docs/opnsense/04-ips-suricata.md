@@ -9,9 +9,9 @@ Applies to **OPNsense 26.7.x** (Suricata is built in).
 |---|---|---|
 | Enabled | ✔ | |
 | IPS mode | ✔ | Drop matching traffic instead of only alerting |
-| Promiscuous mode | ✘ | Not needed with VLAN interfaces |
+| Promiscuous mode | ✔ | Required when inspecting VLAN traffic on the parent interface (see Interfaces) |
 | Pattern matcher | Hyperscan (if the CPU supports it), otherwise Aho-Corasick | Performance |
-| Interfaces | WAN, USERS | Inspect traffic from the internet and from the zone most likely to be compromised |
+| Interfaces | WAN and the trunk's **parent** NIC (e.g. `vtnet1`) | IPS mode (netmap) works on physical/parent interfaces; selecting the parent inspects all VLANs on it, including USERS |
 | Home networks | 10.10.0.0/16, 10.20.0.0/16 | So rules know which side is "inside" |
 | Log package payload | ✘ | Keeps personal data out of the logs |
 
@@ -20,7 +20,8 @@ IPS mode needs a NIC that supports netmap; with VirtIO on Proxmox, disable hardw
 
 ## 4.2 Rule sets
 **Download** tab: enable the **ET open** categories relevant to a small office (e.g. `emerging-malware`,
-`emerging-exploit`, `emerging-scan`, `emerging-web_client`, `emerging-policy`), then **Download & Update
+`emerging-exploit`, `emerging-scan`, `emerging-web_client`, `emerging-policy`, and `emerging-attack_response`,
+which holds the test signature used in 4.3), then **Download & Update
 Rules**. **Schedule** tab: update daily.
 
 **Policy** tab: create a policy *"IPS drop high-confidence"* that sets action **Drop** for rules in the
@@ -36,10 +37,10 @@ anything harmful:
 curl http://testmynids.org/uid/index.html
 ```
 
-It returns the text of a `uid=0(root)` response, which matches the classic *"ATTACK_RESPONSE id check
-returned root"* signature. Expected: an alert (or drop) in **Services ▸ Intrusion Detection ▸ Administration ▸
+It returns the text of a `uid=0(root)` response, which matches the classic *"GPL ATTACK_RESPONSE id check
+returned root"* signature (sid 2100498, in `emerging-attack_response`). Expected: an alert (or drop) in **Services ▸ Intrusion Detection ▸ Administration ▸
 Alerts**, and the same event in Wazuh through syslog ([08-admin-hardening.md](08-admin-hardening.md)). Record
 the result in [../../tests/test-plan.md](../../tests/test-plan.md).
 
-This needs the optional update uplink (guide 1.4) because the test page is on the real internet. Without it,
+This needs the optional update uplink (guide 1.5) because the test page is on the real internet. Without it,
 skip this check and note it in the test plan.

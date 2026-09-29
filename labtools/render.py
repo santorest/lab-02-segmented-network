@@ -23,14 +23,15 @@ def render_ip_plan(p: Policy) -> str:
 
 def render_rules(p: Policy) -> str:
     lines = [
-        HEADER + "# Tested flows\n",
+        HEADER + "# Policy flows\n",
         "Everything not listed as `allow` is denied by default. `deny` rows are listed so the checker proves them.\n",
         "| From | To | Service | Action | Why |",
         "|---|---|---|---|---|",
     ]
     for f in p.flows:
         h = p.hosts[f.dst_host]
-        lines.append(f"| {f.src_zone} | {h.name} ({h.zone}, {h.ip}) | {f.proto}/{f.port} | {f.action} | {f.why} |")
+        via = f" via {f.via}" if f.via else ""
+        lines.append(f"| {f.src_zone} | {h.name} ({h.zone}, {h.ip}){via} | {f.proto}/{f.port} | {f.action} | {f.why} |")
     return "\n".join(lines) + "\n"
 
 
@@ -44,17 +45,20 @@ def render_listeners(p: Policy) -> str:
         "|---|---|---|",
     ]
     for name, host in p.hosts.items():
-        tcp = sorted({f.port for f in p.flows if f.dst_host == name and f.proto == "tcp"})
-        udp = sorted({f.port for f in p.flows if f.dst_host == name and f.proto == "udp"})
-        if not (tcp or udp):
+        ports = {proto: sorted({f.port for f in p.flows if f.dst_host == name and f.proto == proto and not f.via})
+                 for proto in ("tcp", "udp")}
+        if not any(ports.values()):
             continue
-        if host.real_services:
-            parts = [f"{proto} {' '.join(map(str, ports))}" for proto, ports in (("tcp", tcp), ("udp", udp)) if ports]
-            ports = ", ".join(parts)
-            lines.append(f"| {name} | {host.ip} | none: its real services answer ({ports}) |")
+        real = {proto: [n for n in nums if host.answers_itself(n)] for proto, nums in ports.items()}
+        todo = {proto: [n for n in nums if not host.answers_itself(n)] for proto, nums in ports.items()}
+        real_text = ", ".join(f"{proto} {' '.join(map(str, nums))}" for proto, nums in real.items() if nums)
+        if not any(todo.values()):
+            lines.append(f"| {name} | {host.ip} | none: its real services answer ({real_text}) |")
             continue
-        args = (["--tcp", *map(str, tcp)] if tcp else []) + (["--udp", *map(str, udp)] if udp else [])
-        lines.append(f"| {name} | {host.ip} | `sudo python3 -m labtools.listener {' '.join(args)}` |")
+        args = [part for proto, nums in todo.items() if nums for part in (f"--{proto}", *map(str, nums))]
+        command = f"`sudo python3 -m labtools.listener {' '.join(args)}`"
+        note = f" ({real_text} answered by its real services)" if real_text else ""
+        lines.append(f"| {name} | {host.ip} | {command}{note} |")
     return "\n".join(lines) + "\n"
 
 

@@ -9,9 +9,9 @@ Applies to **OPNsense 26.7.x**.
 |---|---|---|
 | Protocol | HTTPS only, certificate from `lab02-ca` | No cleartext admin sessions |
 | Listen interfaces | MGMT only | The GUI isn't even reachable from other zones |
-| Anti-lockout | enabled (it follows the listen interface) | Keeps MGMT access if a rule mistake happens |
+| Anti-lockout | enabled; confirm in **Firewall ▸ Rules ▸ MGMT** that the automatic anti-lockout rule sits on MGMT | Keeps MGMT access if a rule mistake happens |
 | HTTP Strict Transport Security | ✔ | Browsers never downgrade to HTTP |
-| Login messages | Off | No information for unauthenticated visitors |
+| Disable logging of web GUI successful logins | **Leave unticked** | Successful admin logins must stay in the audit trail |
 | Session timeout | 15 min | Idle admin sessions close |
 | Authentication server | `local-totp` (from guide 7) | Admin logins require a one-time code |
 | Secure Shell | enabled, listen on MGMT only, **root login off**, **password login off** | Keys only |
@@ -22,8 +22,10 @@ only.
 On fw-br do the same with BR_MGMT; it is administered from HQ's MGMT network over the tunnel.
 
 ## 8.2 Time
-**System ▸ Settings ▸ General**: time servers `pool.ntp.org` via the update uplink (or dc01 in an offline
-lab). Why: log correlation across the firewall, Wazuh and Windows needs consistent clocks.
+**System ▸ Settings ▸ General**: time servers `pool.ntp.org` via the update uplink. **Services ▸ Network Time**
+serves time to the zones; dc01 syncs from the firewall (10.10.20.1, allowed in guide 2) and the domain members
+sync from dc01. In a lab with no uplink, the firewall is the reference clock. Why: log correlation across the
+firewall, Wazuh and Windows needs consistent clocks, and Kerberos fails beyond 5 minutes of skew.
 
 ## 8.3 Logs to the SIEM (Lab 01)
 **System ▸ Settings ▸ Logging ▸ Remote ▸ +**:
@@ -36,7 +38,10 @@ lab). Why: log correlation across the firewall, Wazuh and Windows needs consiste
 | Hostname | 10.10.20.10 (wazuh01) |
 | Port | 514 |
 
-On wazuh01, allow syslog from 10.10.20.1 and 10.20.99.1 (see Lab 01, `configs/wazuh`). Why: denied
+On **fw-br**, set the remote target's **Source address** to **BR_MGMT** (10.20.99.1): the default source is the
+WAN address, which doesn't match the IPsec tunnel's networks, so the logs would leave unencrypted and be dropped
+at HQ. fw-hq's IPsec rule 3 (guide 2) lets 10.20.99.1 → wazuh01 UDP 514 through. On wazuh01, accept syslog from
+10.10.20.1 and 10.20.99.1 (see Lab 01, `configs/wazuh`). Why: denied
 connections, IPS alerts, VPN logins and admin logins are correlated with endpoint events in one place.
 
 ## 8.4 Backups

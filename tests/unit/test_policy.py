@@ -64,3 +64,26 @@ def test_duplicate_flow_is_rejected():
 def test_malformed_policy_is_a_policy_error():
     with pytest.raises(PolicyError, match="malformed"):
         validate({"zones": {}})
+
+
+def test_via_address_must_be_inside_lab_networks():
+    flow = {**BASE["flows"][0], "via": "8.8.8.8"}
+    with pytest.raises(PolicyError, match="via"):
+        validate(raw(flows=[flow]))
+
+
+def test_real_services_can_list_specific_ports():
+    p = validate(raw(hosts={"srv01": {"zone": "SERVERS", "ip": "10.10.20.12", "real_services": [22]}}))
+    assert p.hosts["srv01"].real_ports == frozenset({22})
+    assert validate(raw()).hosts["srv01"].real_ports == frozenset()
+
+
+def test_real_services_true_means_every_port():
+    p = validate(raw(hosts={"srv01": {"zone": "SERVERS", "ip": "10.10.20.12", "real_services": True}}))
+    assert p.hosts["srv01"].all_real is True
+
+
+@pytest.mark.parametrize("value", ["false", 1, [22, "x"]])
+def test_real_services_rejects_ambiguous_values(value):
+    with pytest.raises(PolicyError, match="real_services"):
+        validate(raw(hosts={"srv01": {"zone": "SERVERS", "ip": "10.10.20.12", "real_services": value}}))

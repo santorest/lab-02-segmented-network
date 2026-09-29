@@ -43,12 +43,25 @@ On both WAN interfaces keep **Block private networks** enabled, but turn **Block
 simulated internet uses 203.0.113.0/24, a documentation range that the bogon list would drop. This is a lab-only
 exception; on a real internet link keep both enabled.
 
-## 1.4 Optional update uplink
+## 1.4 Remove the installer's default LAN
+The installer puts a **LAN** interface (192.168.1.1/24) directly on the second NIC, with a *Default allow LAN to
+any* rule and the anti-lockout rule. Because the VLANs ride on that same NIC, any VM attached **untagged** to
+`vmbr10` would land in that LAN with unrestricted access to every zone and to the GUI.
+
+1. Finish sections 1.3 and 8.1 first, and confirm you can reach the GUI from MGMT (10.10.99.1).
+2. **Firewall ▸ Rules ▸ LAN**: delete the *Default allow LAN* rules.
+3. **Interfaces ▸ Assignments**: delete the LAN assignment (the VLAN devices on the NIC stay).
+4. On the Proxmox side, give the firewall's trunk NIC no untagged VLAN (or an unused one), so untagged frames
+   are dropped.
+
+Why: segmentation is only as strong as its weakest path; an unfiltered untagged network would bypass it.
+
+## 1.5 Optional update uplink
 To download packages and rule sets, add a third NIC on fw-hq connected to your real network and set it as a
 second WAN used **only by the firewall itself** (no NAT for lab zones through it except the explicit update
 rules in [03-nat-and-egress.md](03-nat-and-egress.md)).
 
-## 1.5 DHCP and DNS for the zones
+## 1.6 DHCP and DNS for the zones
 **Services ▸ Dnsmasq DNS & DHCP** (or ISC DHCP if you prefer): enable DHCP on USERS, GUEST and BR_USERS only.
 Servers, DMZ and MGMT hosts use the static addresses from [../ip-plan.md](../ip-plan.md). DNS servers to hand
 out: **dc01 (10.10.20.11)** in USERS and BR_USERS, because domain-joined Windows machines must resolve the

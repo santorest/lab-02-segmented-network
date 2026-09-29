@@ -41,6 +41,17 @@ behaved as expected. Verdicts:
 | FAIL (blocked) | Should be allowed, but didn't connect | Missing rule, listener not running, service down |
 | FAIL (allowed) | Should be blocked, but connected | A rule is too broad, or rule order lets it through |
 
+### Things that can fool the checker
+- **WAN flows are probed at fw-hq's WAN address (203.0.113.1)**, the `via` address in the policy: that is where
+  a port forward or an accidentally exposed service would appear. `probe-internet` has no route to the internal
+  ranges, so probing internal addresses from it would prove nothing.
+- **A host firewall on the target can hide a firewall mistake.** Windows Defender Firewall may drop a probe that
+  fw-hq wrongly allowed, and the deny flow would still read PASS. While testing, confirm each denied flow in
+  **Firewall ▸ Log Files ▸ Live View** (it must show a *block* on fw-hq), or temporarily allow inbound traffic
+  from all lab zones in the target's host firewall.
+- **DNS flows (UDP 53) send a real DNS query**, so they work against the domain controller's DNS server as well as
+  against the listener.
+
 ## 4. Collect the results
 Copy the six CSV files to your workstation's `tests/results/`, fill in the manual checks in
 [../tests/test-plan.md](../tests/test-plan.md), and share both for the write-up's results section.

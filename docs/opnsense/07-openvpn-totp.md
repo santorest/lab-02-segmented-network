@@ -4,8 +4,11 @@ Applies to **OPNsense 26.7.x** (**VPN ▸ OpenVPN ▸ Instances**).
 
 ## 7.1 Two-factor authentication server
 **System ▸ Access ▸ Servers ▸ +**: type **Local + Timebased One Time Password**, name `local-totp`, token
-length 6, time window 30 s, *Reverse token order* off (the password is entered as `password` followed by the
-6-digit code). For each remote user: **System ▸ Access ▸ Users ▸ edit ▸ OTP seed ▸ Generate**, and have the
+length 6, time window 30 s. Tick **Reverse token order** so users type their password first and the 6-digit code
+after it (`password123456`); with it unticked, OPNsense expects the code **first** (`123456password`). Whichever
+you choose, tell users the order; a wrong order is the most common cause of failed logins.
+
+For each remote user: **System ▸ Access ▸ Users ▸ edit ▸ OTP seed ▸ Generate**, and have the
 user scan the QR code with an authenticator app. Store nothing about the seed outside the firewall.
 
 ## 7.2 Server instance
