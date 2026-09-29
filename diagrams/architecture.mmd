@@ -1,0 +1,27 @@
+%% Source for architecture.svg (kept in sync by hand)
+flowchart LR
+  subgraph HQ[Head office]
+    fwhq[fw-hq OPNsense 26.7<br/>IPS · DNS filter · default deny]
+    servers[SERVERS VLAN 20<br/>wazuh01 · dc01 · srv01]
+    users[USERS VLAN 30]
+    guest[GUEST VLAN 40<br/>internet only]
+    dmz[DMZ VLAN 50<br/>web01]
+    mgmt[MGMT VLAN 99<br/>jump01]
+  end
+  subgraph BR[Branch office]
+    fwbr[fw-br OPNsense]
+    brusers[BR-USERS]
+    brmgmt[BR-MGMT]
+  end
+  inet[Simulated internet 203.0.113.0/24<br/>probe-internet · remote staff]
+  servers --- fwhq
+  users --- fwhq
+  guest --- fwhq
+  dmz --- fwhq
+  mgmt --- fwhq
+  fwhq -- WAN --- inet
+  fwbr -- WAN --- inet
+  fwbr --- brusers
+  fwbr --- brmgmt
+  fwhq -. IPsec IKEv2 .- fwbr
+  inet -. OpenVPN + TOTP .- fwhq

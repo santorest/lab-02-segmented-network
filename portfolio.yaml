@@ -1,0 +1,31 @@
+# Metadata used by the portfolio site's `import_lab` command (site repo). Not needed to run the lab.
+slug: segmented-smb-network
+category: network-security
+repo_url: https://github.com/santorest/lab-02-segmented-network
+status: design               # design | in_progress | complete
+difficulty: intermediate     # beginner | intermediate | advanced
+featured: true
+# Show the site's "illustrative output" notice only once the write-up contains lab output/screenshots.
+sample_output_notice: false
+cover: diagrams/architecture.png
+writeup:
+  en: WRITEUP.md
+  es: WRITEUP.es.md
+title:
+  en: Segmented SMB Network on OPNsense
+  es: Red segmentada para pymes con OPNsense
+summary:
+  en: >-
+    Two-site network for a fictional 40-person company: default-deny zones on OPNsense, Suricata IPS, DNS
+    filtering, IPsec between offices and OpenVPN with TOTP, with the firewall policy written as code and
+    verified by an automated checker.
+  es: >-
+    Red de dos sedes para una empresa ficticia de 40 personas: zonas con denegación por defecto en OPNsense,
+    IPS Suricata, filtrado DNS, IPsec entre sedes y OpenVPN con TOTP, con la política del firewall escrita
+    como código y verificada por un comprobador automático.
+tools: [OPNsense, Suricata, Unbound, IPsec, OpenVPN, Proxmox, Python]
+mitre_attack: []
+bundle:
+  title:
+    en: Lab source bundle
+    es: Paquete de fuentes del laboratorio

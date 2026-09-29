@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" font-family="Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Lab 02 architecture: segmented SMB network on OPNsense</title>
+  <desc id="desc">Head office firewall fw-hq separates five zones: servers, users, guest, DMZ and management. A branch firewall fw-br protects branch users and management. Both connect to a simulated internet; an IPsec IKEv2 tunnel links the sites, remote staff use OpenVPN with TOTP, and firewall logs go to wazuh01.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .site { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .site-label { font-size: 14px; font-weight: 700; fill: #334155; }
+      .zone { fill: #ffffff; stroke: #334155; stroke-width: 1.4; }
+      .zone-deny { fill: #fff7ed; stroke: #c2410c; stroke-width: 1.4; }
+      .fw { fill: #ecfeff; stroke: #0e7490; stroke-width: 2.2; }
+      .inet { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.5; }
+      .name { font-size: 14px; font-weight: 700; fill: #0f172a; }
+      .role { font-size: 11.5px; fill: #334155; }
+      .ip { font-size: 10.5px; fill: #64748b; font-family: Consolas, monospace; }
+      .link { stroke: #334155; stroke-width: 1.6; fill: none; }
+      .tunnel { stroke: #0e7490; stroke-width: 2.4; fill: none; stroke-dasharray: 8 5; }
+      .label { font-size: 11px; fill: #0f172a; font-family: Consolas, monospace; }
+      .tlabel { font-size: 12px; font-weight: 600; fill: #0e7490; }
+      .bg { fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="560" fill="#ffffff"/>
+  <text x="20" y="32" font-size="18" font-weight="700" fill="#0f172a">Lab 02 — Segmented SMB network (OPNsense 26.7, isolated lab)</text>
+
+  <!-- HQ -->
+  <rect class="site" x="20" y="50" width="580" height="490" rx="14"/>
+  <text class="site-label" x="36" y="72">Head office (HQ)</text>
+
+  <rect class="fw" x="215" y="250" width="192" height="70" rx="10"/>
+  <text class="name" x="229" y="276">fw-hq</text>
+  <text class="role" x="229" y="294">OPNsense · IPS · DNS filter</text>
+  <text class="ip" x="229" y="310">default deny between zones</text>
+
+  <rect class="zone" x="40" y="84" width="180" height="70" rx="10"/>
+  <text class="name" x="52" y="106">SERVERS · VLAN 20</text>
+  <text class="role" x="52" y="124">wazuh01 · dc01 · srv01</text>
+  <text class="ip" x="52" y="142">10.10.20.0/24</text>
+
+  <rect class="zone" x="400" y="84" width="180" height="70" rx="10"/>
+  <text class="name" x="412" y="106">MGMT · VLAN 99</text>
+  <text class="role" x="412" y="124">jump01 · firewall GUI/SSH</text>
+  <text class="ip" x="412" y="142">10.10.99.0/24</text>
+
+  <rect class="zone" x="40" y="252" width="170" height="66" rx="10"/>
+  <text class="name" x="52" y="274">USERS · VLAN 30</text>
+  <text class="role" x="52" y="291">staff workstations</text>
+  <text class="ip" x="52" y="308">10.10.30.0/24</text>
+
+  <rect class="zone-deny" x="40" y="440" width="180" height="70" rx="10"/>
+  <text class="name" x="52" y="462">GUEST · VLAN 40</text>
+  <text class="role" x="52" y="480">internet only</text>
+  <text class="ip" x="52" y="498">10.10.40.0/24</text>
+
+  <rect class="zone-deny" x="400" y="440" width="180" height="70" rx="10"/>
+  <text class="name" x="412" y="462">DMZ · VLAN 50</text>
+  <text class="role" x="412" y="480">web01 · no access inside</text>
+  <text class="ip" x="412" y="498">10.10.50.0/24</text>
+
+  <path class="link" d="M130,154 L275,250"/>
+  <path class="link" d="M490,154 L335,250"/>
+  <path class="link" d="M210,285 L215,285"/>
+  <path class="link" d="M130,440 L275,320"/>
+  <path class="link" d="M490,440 L335,320"/>
+  <rect class="bg" x="150" y="186" width="104" height="16"/>
+  <text class="label" x="153" y="198">syslog→wazuh01</text>
+
+  <!-- Simulated internet -->
+  <rect class="inet" x="640" y="60" width="340" height="130" rx="14"/>
+  <text class="site-label" x="656" y="84">Simulated internet</text>
+  <text class="ip" x="656" y="102">203.0.113.0/24 (RFC 5737)</text>
+  <text class="role" x="656" y="126">probe-internet · outside view</text>
+  <text class="role" x="656" y="146">remote staff · OpenVPN + TOTP</text>
+  <text class="role" x="656" y="166">only published service: web01 443</text>
+
+  <path class="link" d="M407,265 L640,140"/>
+  <rect class="bg" x="470" y="200" width="36" height="16"/>
+  <text class="label" x="473" y="212">WAN</text>
+
+  <!-- Branch -->
+  <rect class="site" x="640" y="300" width="340" height="240" rx="14"/>
+  <text class="site-label" x="656" y="322">Branch office</text>
+
+  <rect class="fw" x="730" y="336" width="150" height="62" rx="10"/>
+  <text class="name" x="745" y="362">fw-br</text>
+  <text class="role" x="745" y="382">OPNsense</text>
+
+  <rect class="zone" x="656" y="444" width="150" height="70" rx="10"/>
+  <text class="name" x="668" y="466">BR-USERS</text>
+  <text class="role" x="668" y="484">branch staff</text>
+  <text class="ip" x="668" y="502">10.20.30.0/24</text>
+
+  <rect class="zone" x="818" y="444" width="150" height="70" rx="10"/>
+  <text class="name" x="830" y="466">BR-MGMT</text>
+  <text class="role" x="830" y="484">managed from HQ</text>
+  <text class="ip" x="830" y="502">10.20.99.0/24</text>
+
+  <path class="link" d="M760,398 L731,444"/>
+  <path class="link" d="M850,398 L893,444"/>
+  <path class="link" d="M805,336 L805,190"/>
+  <rect class="bg" x="812" y="240" width="36" height="16"/>
+  <text class="label" x="815" y="252">WAN</text>
+
+  <!-- IPsec tunnel -->
+  <path class="tunnel" d="M407,305 C520,340 615,380 730,368"/>
+  <rect class="bg" x="452" y="352" width="150" height="18"/>
+  <text class="tlabel" x="456" y="366">IPsec IKEv2 · AES-256-GCM</text>
+</svg>
