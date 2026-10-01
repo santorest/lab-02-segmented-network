@@ -1,11 +1,11 @@
 # Red segmentada para pymes con OPNsense
 
-> **Resumen** — Diseño de referencia para una empresa ficticia de 40 personas con sede principal y una
+> **Resumen** — Diseño para una empresa ficticia de 40 personas con sede principal y una
 > sucursal: cinco zonas de seguridad detrás de un firewall OPNsense con denegación por defecto, IPS Suricata,
 > filtrado DNS, un túnel IPsec entre sedes con certificados, acceso remoto con TOTP y administración
 > endurecida. La política del firewall se escribe una sola vez como código y de ella salen tanto la
 > documentación como un verificador de conectividad automatizado e inofensivo.
-> **Entregable: diseño de referencia, listo para construir.**
+> **Entregable: diseño, política como código y herramientas, listos para construir; resultados del laboratorio aún sin medir.**
 
 | | |
 |---|---|

@@ -14,11 +14,11 @@ bundle: "Published on the portfolio site with its SHA-256 checksum"
 
 # Segmented SMB Network on OPNsense
 
-> **TL;DR** — Reference design for a fictional 40-person company with a head office and a branch: five
+> **TL;DR** — Design for a fictional 40-person company with a head office and a branch: five
 > security zones behind a default-deny OPNsense firewall, Suricata IPS, DNS filtering, a certificate-based
 > IPsec tunnel between sites, remote access with TOTP, and hardened administration. The firewall policy is
 > written once as code and drives both the documentation and an automated, harmless reachability checker.
-> **Deliverable: reference design, ready to build.**
+> **Deliverable: design, policy as code and tooling, ready to build; lab results not yet measured.**
 
 | | |
 |---|---|
