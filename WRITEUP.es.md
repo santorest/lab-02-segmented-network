@@ -130,7 +130,7 @@ licencia usando la misma política.
 
 ## 7. Reprodúcelo tú mismo
 
-- Clonar: `git clone https://github.com/santorest/lab-02-segmented-network.git`
+- Explorar el código: [en este sitio](./), archivo por archivo.
 - Descargar el paquete: desde el sitio del portafolio (el SHA-256 aparece junto a la descarga).
 - Tiempo estimado: 1–2 días.
 - Limpieza: elimina las VM y los bridges; no se usan recursos en la nube.
