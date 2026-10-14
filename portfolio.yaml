@@ -1,7 +1,6 @@
 # Metadata used by the portfolio site's `import_lab` command (site repo). Not needed to run the lab.
 slug: segmented-smb-network
 category: network-security
-repo_url: https://github.com/santorest/lab-02-segmented-network
 status: design               # design | in_progress | complete
 difficulty: intermediate     # beginner | intermediate | advanced
 featured: true

@@ -8,7 +8,6 @@ date: "2026-09-29"
 time_to_reproduce: "1–2 days"
 skills: [OPNsense, Suricata, Unbound, IPsec, OpenVPN, Proxmox, Python]
 frameworks: [CIS Controls v8, NIST CSF 2.0]
-repo: "https://github.com/santorest/lab-02-segmented-network"
 bundle: "Published on the portfolio site with its SHA-256 checksum"
 ---
 
@@ -133,7 +132,7 @@ publish the measured conformance here, and later compare with a licensed FortiGa
 
 ## 7. Reproduce it yourself
 
-- Clone: `git clone https://github.com/santorest/lab-02-segmented-network.git`
+- Browse the source: [on this site](./), file by file.
 - Download bundle: from the portfolio site (SHA-256 shown next to the download).
 - Estimated time: 1–2 days.
 - Teardown: delete the VMs and bridges; no cloud resources are used.
